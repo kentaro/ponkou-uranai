@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポンコウ占い 🦐</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.3rem;
+    text-shadow: 0 0 20px rgba(255,150,100,0.5);
+  }
+  .subtitle {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-bottom: 2rem;
+  }
+  .date {
+    font-size: 1.1rem;
+    color: #ccc;
+    margin-bottom: 2rem;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    max-width: 900px;
+    width: 100%;
+  }
+  .card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 16px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+    transition: transform 0.2s;
+  }
+  .card:hover { transform: translateY(-4px); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  .card-icon { font-size: 2rem; }
+  .card-name { font-size: 1.3rem; font-weight: bold; }
+  .card-role { font-size: 0.75rem; color: #999; }
+  .fortune-rank {
+    font-size: 1.8rem;
+    text-align: center;
+    margin: 0.8rem 0;
+  }
+  .stars { color: #ffd700; letter-spacing: 2px; }
+  .fortune-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #ddd;
+    margin-bottom: 1rem;
+  }
+  .lucky-item {
+    font-size: 0.85rem;
+    color: #aad;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 0.8rem;
+  }
+  .lucky-item span { color: #ffd700; }
+  .clash {
+    font-size: 0.85rem;
+    color: #f99;
+    margin-top: 0.5rem;
+  }
+  footer {
+    margin-top: 3rem;
+    color: #666;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+  footer a { color: #88a; }
+</style>
+</head>
+<body>
+
+<h1>🦐 ポンコウ占い</h1>
+<p class="subtitle">AIが毎日お届けするポンコウクラブの運勢</p>
+<p class="date" id="dateDisplay"></p>
+
+<div class="cards" id="cards"></div>
+
+<footer>
+  <p>Powered by ポンコウクラブのAIたち（傀儡師・Black Dragon・Jarvis・のるる）</p>
+  <p style="margin-top:0.5rem">※ この占いはAIが勝手に生成しています。苦情は受け付けません。</p>
+</footer>
+
+<script>
+const MEMBERS = [
+  { name: "あんちぽ", icon: "📡", role: "主催・人間" },
+  { name: "くろたき", icon: "🔧", role: "人間" },
+  { name: "永田", icon: "⚡", role: "人間" },
+  { name: "いすぺん", icon: "🎯", role: "人間" },
+  { name: "マッツ", icon: "🎩", role: "人間" },
+  { name: "傀儡師", icon: "🎭", role: "AI（OpenClaw）" },
+  { name: "Black Dragon", icon: "🐉", role: "AI（OpenClaw）" },
+  { name: "Jarvis", icon: "🤖", role: "AI（OpenClaw）" },
+  { name: "のるる", icon: "🧸", role: "AI（OpenClaw）" },
+];
+
+const FORTUNES = [
+  "大吉 🌟", "吉 ✨", "中吉 ☀️", "小吉 🌤️", "末吉 ⛅", "凶 🌧️"
+];
+const FORTUNE_WEIGHTS = [10, 25, 30, 20, 10, 5];
+
+const LUCKY_WORDS = [
+  "リファクタリング", "デプロイ", "マージ", "コードレビュー", "ペアプロ",
+  "散歩", "コーヒー", "ビール", "焼肉", "ラーメン",
+  "猫", "犬", "エビ", "カニ", "タコ",
+  "SSH", "Docker", "Kubernetes", "Raspberry Pi", "Vim",
+  "バルト", "スカルラッティ", "ロラン", "ドメニコ",
+  "プルリクエスト", "イシュー", "ブランチ", "フォーク",
+  "温泉", "サウナ", "昼寝", "早起き",
+  "TypeScript", "Rust", "Go", "Python", "Ruby",
+  "占い", "ポンコウ", "エビフライ", "無線",
+];
+
+const MESSAGES_GOOD = [
+  "今日はコードが一発で通る日。テスト書かなくても大丈夫（嘘）。",
+  "思いがけない人からのメッセージが吉。既読スルーしないこと。",
+  "午後から運気上昇。午前中は寝てていい。",
+  "新しいことを始めるのに最適。リポジトリを作ろう。",
+  "今日のあなたの発言が誰かの一日を変える。",
+  "直感が冴えている。迷ったら最初に思いついた方を選べ。",
+  "ドキュメントを書くと運気が上がる。READMEを更新しよう。",
+  "誰かを褒めると3倍になって返ってくる日。",
+  "今日はバグが見つかりやすい。逆にチャンス。",
+  "散歩に出ると良いアイデアが浮かぶ。",
+];
+
+const MESSAGES_BAD = [
+  "本番環境には触らないほうがいい日。",
+  "typoに注意。特にデプロイスクリプト。",
+  "今日のSlackの通知は全部罠。",
+  "rm -rf を打ちたくなっても我慢。",
+  "会議が長引く暗示。水を多めに持っていけ。",
+];
+
+const CLASHES = [
+  "今日ぶつかりそうな相手",
+  "今日意見が割れそうな相手",
+  "今日テンションが噛み合わない相手",
+];
+
+// Seeded random (daily seed)
+function mulberry32(a) {
+  return function() {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+}
+
+function dateSeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth()+1) * 100 + d.getDate();
+}
+
+function shuffle(arr, rng) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickWeighted(items, weights, rng) {
+  const total = weights.reduce((a,b) => a+b, 0);
+  let r = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return { item: items[i], index: i };
+  }
+  return { item: items[items.length-1], index: items.length-1 };
+}
+
+function render() {
+  const seed = dateSeed();
+  const today = new Date();
+  document.getElementById('dateDisplay').textContent =
+    `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日の運勢`;
+
+  const container = document.getElementById('cards');
+  const memberOrder = shuffle(MEMBERS, mulberry32(seed));
+
+  memberOrder.forEach((member, idx) => {
+    const rng = mulberry32(seed * 100 + idx * 7 + member.name.length);
+
+    // Fortune
+    const { item: fortune, index: fIdx } = pickWeighted(FORTUNES, FORTUNE_WEIGHTS, rng);
+    const isGood = fIdx <= 2;
+    const stars = "★".repeat(5 - fIdx) + "☆".repeat(fIdx);
+
+    // Message
+    const msgs = isGood ? MESSAGES_GOOD : MESSAGES_BAD;
+    const msg = msgs[Math.floor(rng() * msgs.length)];
+
+    // Lucky word
+    const luckyWord = LUCKY_WORDS[Math.floor(rng() * LUCKY_WORDS.length)];
+
+    // Clash
+    const others = MEMBERS.filter(m => m.name !== member.name);
+    const clashMember = others[Math.floor(rng() * others.length)];
+    const clashType = CLASHES[Math.floor(rng() * CLASHES.length)];
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-header">
+        <span class="card-icon">${member.icon}</span>
+        <div>
+          <div class="card-name">${member.name}</div>
+          <div class="card-role">${member.role}</div>
+        </div>
+      </div>
+      <div class="fortune-rank">${fortune}</div>
+      <div class="stars" style="text-align:center">${stars}</div>
+      <p class="fortune-text">${msg}</p>
+      <div class="lucky-item">🔑 ラッキーワード: <span>${luckyWord}</span></div>
+      <div class="clash">⚔️ ${clashType}: ${clashMember.icon} ${clashMember.name}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+render();
+</script>
+</body>
+</html>
