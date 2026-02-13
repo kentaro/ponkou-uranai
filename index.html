@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ポンコウ占い 🦐</title>
+<meta property="og:title" content="ポンコウ占い 🦐">
+<meta property="og:description" content="AIが毎日お届けするポンコウクラブの運勢。ラッキーワード＆今日気にかけたい相手つき。">
+<meta property="og:url" content="https://kentarokuribayashi.com/ponkou-uranai/">
+<meta name="twitter:card" content="summary">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -24,49 +28,76 @@
   .subtitle {
     font-size: 0.9rem;
     color: #aaa;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
   .date {
     font-size: 1.1rem;
     color: #ccc;
+    margin-bottom: 1rem;
+  }
+  .filter {
     margin-bottom: 2rem;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .filter-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #fff;
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: rgba(255,200,100,0.3);
+    border-color: rgba(255,200,100,0.5);
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
-    max-width: 900px;
+    max-width: 960px;
     width: 100%;
   }
   .card {
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15);
     border-radius: 16px;
-    padding: 1.5rem;
+    padding: 1.8rem;
     backdrop-filter: blur(10px);
     transition: transform 0.2s;
+    position: relative;
   }
   .card:hover { transform: translateY(-4px); }
+  .card.highlight {
+    border-color: rgba(255,200,100,0.6);
+    box-shadow: 0 0 30px rgba(255,200,100,0.15);
+  }
   .card-header {
     display: flex;
     align-items: center;
     gap: 0.8rem;
     margin-bottom: 1rem;
   }
-  .card-icon { font-size: 2rem; }
-  .card-name { font-size: 1.3rem; font-weight: bold; }
+  .card-icon { font-size: 2.2rem; }
+  .card-name { font-size: 1.4rem; font-weight: bold; }
   .card-role { font-size: 0.75rem; color: #999; }
   .fortune-rank {
-    font-size: 1.8rem;
+    font-size: 2.2rem;
     text-align: center;
-    margin: 0.8rem 0;
+    margin: 1rem 0 0.5rem;
+    font-weight: bold;
   }
-  .stars { color: #ffd700; letter-spacing: 2px; }
+  .stars { color: #ffd700; letter-spacing: 3px; font-size: 1.2rem; }
   .fortune-text {
     font-size: 0.95rem;
     line-height: 1.7;
     color: #ddd;
-    margin-bottom: 1rem;
+    margin: 1rem 0;
   }
   .lucky-item {
     font-size: 0.85rem;
@@ -80,13 +111,46 @@
     color: #9df;
     margin-top: 0.5rem;
   }
+  .card-actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .copy-btn {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: #ccc;
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+  }
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(255,200,100,0.9);
+    color: #000;
+    padding: 0.6rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    transition: transform 0.3s;
+    z-index: 100;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
   footer {
     margin-top: 3rem;
     color: #666;
     font-size: 0.75rem;
     text-align: center;
   }
-  footer a { color: #88a; }
 </style>
 </head>
 <body>
@@ -95,7 +159,9 @@
 <p class="subtitle">AIが毎日お届けするポンコウクラブの運勢</p>
 <p class="date" id="dateDisplay"></p>
 
+<div class="filter" id="filter"></div>
 <div class="cards" id="cards"></div>
+<div class="toast" id="toast">コピーしました！</div>
 
 <footer>
   <p>Powered by ポンコウクラブのAIたち（傀儡師・Black Dragon・Jarvis・のるる）</p>
@@ -130,6 +196,7 @@ const LUCKY_WORDS = [
   "温泉", "サウナ", "昼寝", "早起き",
   "TypeScript", "Rust", "Go", "Python", "Ruby",
   "占い", "ポンコウ", "エビフライ", "無線",
+  "ハンコ", "承認", "LGTM", "船", "アンテナ",
 ];
 
 const MESSAGES_GOOD = [
@@ -143,6 +210,8 @@ const MESSAGES_GOOD = [
   "誰かを褒めると3倍になって返ってくる日。",
   "今日はバグが見つかりやすい。逆にチャンス。",
   "散歩に出ると良いアイデアが浮かぶ。",
+  "今日始めたプロジェクトは長続きする。",
+  "意外な人と意気投合する暗示。",
 ];
 
 const MESSAGES_BAD = [
@@ -151,6 +220,7 @@ const MESSAGES_BAD = [
   "今日のSlackの通知は全部罠。",
   "rm -rf を打ちたくなっても我慢。",
   "会議が長引く暗示。水を多めに持っていけ。",
+  "マージコンフリクトに注意。落ち着いて対処すれば大丈夫。",
 ];
 
 const CLASHES = [
@@ -159,7 +229,6 @@ const CLASHES = [
   "今日いい刺激をくれそうな相手",
 ];
 
-// Seeded random (daily seed)
 function mulberry32(a) {
   return function() {
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -193,37 +262,75 @@ function pickWeighted(items, weights, rng) {
   return { item: items[items.length-1], index: items.length-1 };
 }
 
+function showToast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text || 'コピーしました！';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyResult(member, fortune, msg, luckyWord, clashType, clashName) {
+  const fortuneClean = fortune.replace(/\s*[🌟✨☀️🌤️⛅🌧️]/g, '').trim();
+  const text = `🦐ポンコウ占い ${new Date().toLocaleDateString('ja-JP')} / ${member.name}: ${fortuneClean} / ラッキー: ${luckyWord} / ${clashType}: ${clashName}\nhttps://kentarokuribayashi.com/ponkou-uranai/?name=${encodeURIComponent(member.name)}`;
+  navigator.clipboard.writeText(text).then(() => showToast());
+}
+
+function copyLink(name) {
+  const url = `https://kentarokuribayashi.com/ponkou-uranai/?name=${encodeURIComponent(name)}`;
+  navigator.clipboard.writeText(url).then(() => showToast('リンクをコピーしました！'));
+}
+
+function getSelectedName() {
+  const params = new URLSearchParams(location.search);
+  return params.get('name');
+}
+
 function render() {
   const seed = dateSeed();
   const today = new Date();
+  const selectedName = getSelectedName();
+
   document.getElementById('dateDisplay').textContent =
     `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日の運勢`;
+
+  // Filter buttons
+  const filterContainer = document.getElementById('filter');
+  const allBtn = document.createElement('button');
+  allBtn.className = 'filter-btn' + (!selectedName ? ' active' : '');
+  allBtn.textContent = '全員';
+  allBtn.onclick = () => { history.pushState({}, '', location.pathname); location.reload(); };
+  filterContainer.appendChild(allBtn);
+
+  MEMBERS.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (selectedName === m.name ? ' active' : '');
+    btn.textContent = `${m.icon} ${m.name}`;
+    btn.onclick = () => {
+      history.pushState({}, '', `?name=${encodeURIComponent(m.name)}`);
+      location.reload();
+    };
+    filterContainer.appendChild(btn);
+  });
 
   const container = document.getElementById('cards');
   const memberOrder = shuffle(MEMBERS, mulberry32(seed));
 
   memberOrder.forEach((member, idx) => {
-    const rng = mulberry32(seed * 100 + idx * 7 + member.name.length);
+    if (selectedName && member.name !== selectedName) return;
 
-    // Fortune
+    const rng = mulberry32(seed * 100 + idx * 7 + member.name.length);
     const { item: fortune, index: fIdx } = pickWeighted(FORTUNES, FORTUNE_WEIGHTS, rng);
     const isGood = fIdx <= 2;
     const stars = "★".repeat(5 - fIdx) + "☆".repeat(fIdx);
-
-    // Message
     const msgs = isGood ? MESSAGES_GOOD : MESSAGES_BAD;
     const msg = msgs[Math.floor(rng() * msgs.length)];
-
-    // Lucky word
     const luckyWord = LUCKY_WORDS[Math.floor(rng() * LUCKY_WORDS.length)];
-
-    // Clash
     const others = MEMBERS.filter(m => m.name !== member.name);
     const clashMember = others[Math.floor(rng() * others.length)];
     const clashType = CLASHES[Math.floor(rng() * CLASHES.length)];
 
     const card = document.createElement('div');
-    card.className = 'card';
+    card.className = 'card' + (selectedName === member.name ? ' highlight' : '');
     card.innerHTML = `
       <div class="card-header">
         <span class="card-icon">${member.icon}</span>
@@ -237,6 +344,10 @@ function render() {
       <p class="fortune-text">${msg}</p>
       <div class="lucky-item">🔑 ラッキーワード: <span>${luckyWord}</span></div>
       <div class="clash">🤝 ${clashType}: ${clashMember.icon} ${clashMember.name}</div>
+      <div class="card-actions">
+        <button class="copy-btn" onclick='copyResult(${JSON.stringify(member)}, "${fortune}", "${msg}", "${luckyWord}", "${clashType}", "${clashMember.name}")'>📋 結果をコピー</button>
+        <button class="copy-btn" onclick='copyLink("${member.name}")'>🔗 リンクをコピー</button>
+      </div>
     `;
     container.appendChild(card);
   });
