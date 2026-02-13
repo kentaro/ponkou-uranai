@@ -77,7 +77,7 @@
   .lucky-item span { color: #ffd700; }
   .clash {
     font-size: 0.85rem;
-    color: #f99;
+    color: #9df;
     margin-top: 0.5rem;
   }
   footer {
@@ -154,9 +154,9 @@ const MESSAGES_BAD = [
 ];
 
 const CLASHES = [
-  "今日ぶつかりそうな相手",
-  "今日意見が割れそうな相手",
-  "今日テンションが噛み合わない相手",
+  "今日気にかけたい相手",
+  "今日シンクロしそうな相手",
+  "今日いい刺激をくれそうな相手",
 ];
 
 // Seeded random (daily seed)
@@ -236,7 +236,7 @@ function render() {
       <div class="stars" style="text-align:center">${stars}</div>
       <p class="fortune-text">${msg}</p>
       <div class="lucky-item">🔑 ラッキーワード: <span>${luckyWord}</span></div>
-      <div class="clash">⚔️ ${clashType}: ${clashMember.icon} ${clashMember.name}</div>
+      <div class="clash">🤝 ${clashType}: ${clashMember.icon} ${clashMember.name}</div>
     `;
     container.appendChild(card);
   });
